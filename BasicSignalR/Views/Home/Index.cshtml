@@ -1,0 +1,83 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<h1>Chat Room</h1>
+
+<form id="frmMessage">
+    <input id="txtMessage" type="text" placeholder="message..." required />
+    <button>Send</button>
+</form>
+<ul id="ulMessages"></ul>
+
+@section Script{
+
+    <script>
+
+        const frmMessage = document.getElementById("frmMessage");
+        const txtMessage = document.getElementById("txtMessage");
+        const ulMessages = document.getElementById("ulMessages");
+        let username = prompt("Your Name is ...?");
+        const color = `rgba(${r()},${r()},${r()},0.75)`
+
+        function r() {
+            return Math.floor(Math.random() * 256);
+        }
+
+        while (!username || username.trim().length === 0 || username.length > 5) {
+            alert("Please enter a valid name with maximum 5 characters!");
+            username = prompt("Your Name is ...?");
+        }
+
+        alert("Hello, " + username + "! Welcome.");
+
+
+        //signalR connection
+        const conn = new signalR.HubConnectionBuilder().withUrl("/ChatHub").build();
+
+        window.onmousemove = function (e) {
+            conn.invoke("SendLocation", color, e.clientX, e.clientY);
+        };
+        conn.on("GetLocation", function (connectionId, color, x, y) {
+            let box = document.getElementById(connectionId);
+            if (!box) {
+                const box = document.createElement("div");
+                box.className = "box";
+                box.id = connectionId;                       
+                document.body.append(box); 
+            }
+            box.innerHTML = username;
+            box.style.backgroundColor = color;
+            box.style.left = x + "px";
+            box.style.top = y + "px";
+        });
+
+        //send to db
+        frmMessage.onsubmit = function (event) {
+            event.preventDefault();
+
+            conn.invoke("SendMessage", username, txtMessage.value).catch(function (err) {
+                console.log(err);
+            });
+            txtMessage.value = "";
+        };
+        //from db message
+        conn.on("NewMessage", function (user, message) {
+            const li = document.createElement("li");
+            li.textContent = `${user}: ${message}`;
+            ulMessages.prepend(li);
+        });
+
+        //start conn
+        conn.start().then(function () {
+            console.log("Successfull Conn");
+        }).catch(function (err) {
+            console.log(err);
+        })
+
+    </script>
+
+}
+
+
+
